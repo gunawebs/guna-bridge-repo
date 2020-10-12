@@ -1,0 +1,202 @@
+---
+title: "First Draft: Singleton and Voids"
+author: "Guna Pemmaraju"
+date: "10/12/2020"
+urlcolor: blue
+linkcolor: blue
+output:
+  pdf_document:
+    number_sections: yes
+    toc: yes
+    toc_depth: 2
+---
+\newpage
+
+```{r setup, include=FALSE}
+library(kableExtra)
+source("./card_setup.R")
+allDF <- read_csv("./output/SingletonVoids.csv")%>%
+  mutate(VoidsInDeal=as.character(VoidsInDeal))%>%
+  mutate(SingleTonsInDeal=as.character(SingleTonsInDeal))
+
+singletonsDf <- allDF%>%group_by(SingleTonsInDeal)%>%
+  summarise(n=sum(n), .groups="drop")%>%
+  mutate(Percent=100*n/sum(n))%>%
+  mutate(Percent=paste(round(Percent,2), "%"))
+
+VoidsDf <- allDF%>%group_by(VoidsInDeal)%>%
+  summarise(n=sum(n), .groups="drop")%>%
+  mutate(Percent=100*n/sum(n))%>%
+  mutate(Percent=paste(round(Percent,2), "%"))
+
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+# Introduction to the set-up
+
+This simulation was setup using the standard deck of cards, and set to randomly generate deals. The source code used can be viewed at: https://github.com/gunawebs/guna-bridge-repo
+
+Feel free to fork / send pull requests with bug fixes and improvements.
+
+
+
+
+## A single simulated deal
+
+A single simulated deal would look like this:
+
+
+```{r Deal cards}
+dealCards()%>%as.data.frame()
+```
+
+
+
+
+## Goals for the simulation effort
+
+For the simulation, 1 million deals were generated. The first analysis, more as a sample case, consisted of looking for the distribution of singletons and voids. 
+As is obvious, these could technically have been worked out using the basic probability theory. However:
+
+- This Goal-Set is used as a way to showcase what can be done, especially in future, using the simulation approach
+- Mathematical computation may not be easily explainable to everyone. On the other hand a simulation is very easy to understand. 
+And with sufficiently large n, it gains user confidence with ease.
+
+Some of the questions that the current simulation tried to answer are:
+
+- What is the probability that deal has exactly one singleton?
+- What is the probability that deal has at least one singleton?
+- What is the probability that deal has exactly one void?
+- What is the probability that deal has at least one void?
+- What is the interplay of distribution between singletons and voids in a deal
+
+
+\newpage
+
+
+# Analysis of the outputs from Simulation
+
+## Distribution of Singletons in a deal
+
+```{r singletons, echo=FALSE}
+singletonsDf%>%
+  ggplot(aes(x=SingleTonsInDeal, y=n, label=Percent))+
+  geom_label(vjust = -0.10)+
+  geom_bar(stat="identity", fill="#445588")+
+  labs(x="Singletons in a deal", y="Number of deals Per Million dealt")+
+  scale_y_continuous(limits = c(0,400000), labels = comma)
+
+```
+
+As we can see, only 25% of deals are bereft of a singleton! Which means a staggering 75% of the deals would have at least 1 singleton. 
+
+**Data Based Insights**
+
+- If you do not see a singleton between you and the dummy, there is a 75% chance that one of the opponents has a singleton. So, do play for a bad break!
+- If you are already seeing a singleton, the chance of one or more other singletons is around 51%
+- 38% of the deals would have at least 2 singletons. So if the previous deal had less than 2 singletons, the chance of this deal having at least 2 singletons is *a whopping 76%!*
+- 12% of the deals would have at least 3 singletons. So in an 8 board set, do not rule out a 3 singleton deal.
+
+## Distribution of Voids in a deal
+
+```{r voids, echo=FALSE}
+VoidsDf%>%
+  ggplot(aes(x=VoidsInDeal, y=n, label=Percent))+
+  geom_label(vjust = -0.10)+
+  geom_bar(stat="identity", fill="#445588")+
+  labs(x="Voids in a deal", y="Number of deals Per Million dealt")+
+  scale_y_continuous(limits = c(0,900000), labels = comma)
+
+```
+
+As we can see, about 18% of the deals have at least one void.
+
+**Data Based Insights**
+
+- In a 6 board match, at least one deal would have a void. 
+- In a 12 board set, if you haven't seen any void in the first 5 boards, pretty much, any moment now a void will show up.
+
+## Interplay between Voids and Singletons
+
+```{r interplay, echo=FALSE}
+allDF%>%
+  ggplot(aes(x=SingleTonsInDeal, y=n, fill=VoidsInDeal))+
+  geom_bar(position="stack", stat="identity")+
+  geom_label(data=singletonsDf%>%mutate(VoidsInDeal="0"), mapping=aes(label=Percent), vjust = -0.10,  show.legend  = F)+
+  labs(x="Singletons in a deal", y="Number of deals Per Million dealt")+
+  scale_y_continuous(labels = comma, limits = c(0,400000))+scale_fill_manual(values=brewer.pal(8, "Accent"))
+
+```
+
+There seems to be an interesting interplay of voids and singletons and these needs to be looked at deeper.
+
+## Distribution of Singletons in deals with no voids
+
+```{r noVoidsSingletons, echo=FALSE}
+allDF%>%
+  filter(VoidsInDeal=="0")%>%group_by(SingleTonsInDeal)%>%
+  summarise(n=sum(n), .groups="drop")%>%
+  mutate(Percent=100*n/sum(n))%>%
+  mutate(Percent=paste(round(Percent,2), "%"))%>%
+  ggplot(aes(x=SingleTonsInDeal, y=n, label=Percent))+
+  geom_label(vjust = -0.10)+
+  geom_bar(stat="identity", fill="#445588")+
+  labs(x="Singletons in a deal", y="Number of deals Per Million dealt")+
+  scale_y_continuous(limits = c(0,400000), labels = comma)
+
+```
+
+There does not seem to be a big change in the probability distribution of this one.
+
+## Distribution of Singletons in deals with 1 void
+
+```{r oneVoidsSingletons, echo=FALSE}
+allDF%>%
+  filter(VoidsInDeal=="1")%>%group_by(SingleTonsInDeal)%>%
+  summarise(n=sum(n), .groups="drop")%>%
+  mutate(Percent=100*n/sum(n))%>%
+  mutate(Percent=paste(round(Percent,2), "%"))%>%
+  ggplot(aes(x=SingleTonsInDeal, y=n, label=Percent))+
+  geom_label(vjust = -0.10)+
+  geom_bar(stat="identity", fill="#445588")+
+  labs(x="Singletons in a deal", y="Number of deals Per Million dealt")+
+  scale_y_continuous(limits = c(0,80000), labels = comma)
+
+```
+**Data Based Insights**
+
+- If you are seeing a void, probability that one of the others has a singleton is much higher than otherwise
+\newpage
+
+## Overall Cross distribution of Singletons Vs Voids
+
+**Cross distribution of Singletons Vs Voids across Million Deals**
+
+```{r overallTable, echo=FALSE}
+tableRds <- readRDS("./output/rds_table_SingletonVoids.RDS")
+kbl(tableRds)%>%
+  kable_classic() %>%
+  add_header_above(c("Singletons in the Deal" = 1, "Voids in the Deal" = 5))
+```
+
+
+**Converted to Probability Percentages**
+
+```{r overallTablePercent, echo=FALSE}
+res <- 100*tableRds/sum(tableRds)
+myRes <- paste0(round(res,2), "%")
+dat <- as.data.frame(matrix(myRes, nrow=nrow(res), ncol=ncol(res)))
+colnames(dat) <-colnames(res)
+rownames(dat) <-rownames(res)
+
+kbl(dat)%>%
+  kable_classic() %>%
+  add_header_above(c("Singletons in the Deal" = 1, "Voids in the Deal" = 5))
+```
+
+## End Note
+The above simulation and the subsequent analysis and this report was created in the last few hours, out a whim for simulation. However a solid platform has been set for further analysis. Apart from analyzing hand distribution, a double dummy engine could be plugged in, and with that a plethora of simulations, followed by insights, could be expected. 
+
+PS: This is v1, and hence errors, including typos, are expected.
+
+
